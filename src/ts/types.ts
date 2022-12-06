@@ -16,14 +16,14 @@ export type Path = string;
 
 export type InputMem = { [key: Path]: any };
 
-export type Labels = { [key: string]: string | string[] };
+export type Symbols = { [key: string]: string | string[] };
 
 export type F = (
   im: InputMem,
   data: { [key: string]: any },
 ) => void | Promise<void>;
 export type Diff = (val1: any, val2: any) => boolean | Promise<boolean>;
-export type OnNotification = (n: Event) => void | Promise<void>;
+export type OnNotification = (n: NOPNotification) => void | Promise<void>;
 
 export type NotifyingCellParams = {
   f?: F;
@@ -37,10 +37,10 @@ export type NotifyingCellParams = {
   forceActivation?: boolean;
   forceActivationByPaths?: string[];
   onNotification?: OnNotification;
-  labels?: Labels;
+  symbols?: Symbols;
 };
 
-export type HistoryEntryFunc = (n: Event) => void | Promise<void>;
+export type HistoryEntryFunc = (n: NOPNotification) => void | Promise<void>;
 
 export type HistoryGetFunc = (
   from: ID | null,
@@ -48,7 +48,7 @@ export type HistoryGetFunc = (
   limit: number,
   startTime: number,
   endTime: number,
-) => Event[] | Promise<Event[]>;
+) => NOPNotification[] | Promise<NOPNotification[]>;
 
 export type HistoryTraverseFunc = (
   id: ID,
@@ -62,15 +62,19 @@ export type GraphEngine = {
   parentsFunc: HistoryTraverseFunc;
 };
 
-export type SearchFunc = (n: Event) => boolean;
+export type SearchFunc = (n: NOPNotification) => boolean;
 
-export type Event = {
+export type ExpAlgMode = "SEARCH" | "PAST" | "AFTER";
+
+export type Connection = Map<ID, Map<Path, [NotificationMode, Symbols]>>;
+
+export type NOPNotification = {
   id?: ID;
   from: ID | null;
   to: ID | null;
   path: Path;
   notification: any;
-  labels: Labels;
+  symbols: Symbols;
   mode: NotificationMode;
   time: number;
   activationTime: number;

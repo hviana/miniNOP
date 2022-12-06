@@ -7,16 +7,17 @@ cel: +55 (41) 99999-4664
 
 import HistoryGraph from "./HistoryGraph.ts";
 import {
+  Connection,
   Diff,
-  Event,
   F,
   ID,
   InputMem,
-  Labels,
+  NOPNotification,
   NotificationMode,
   NotifyingCellParams,
   OnNotification,
   Path,
+  Symbols,
 } from "./ts/types.ts";
 
 import AsyncQueue from "./AsyncQueue.ts";
@@ -26,6 +27,7 @@ export default class NotifyingCell {
   static #notificationModeOrder: NotificationMode[] = [
     "WEAK",
     "",
+    "STRONG",
     "RENOTIFICATION",
   ];
   //@ts-ignore
@@ -42,10 +44,8 @@ export default class NotifyingCell {
     [key: Path]: Diff;
   };
   #onNotification: OnNotification;
-  #labels: Labels;
-  #connections: Map<ID, Map<Path, [NotificationMode, Labels]>> = new Map();
-  #forceActivation: boolean = false;
-  #forceActivationByPaths: string[] = [];
+  #symbols: Symbols;
+  #connections: Connection = new Map();
   static historyEnabled: boolean = false;
 
   /**
@@ -58,7 +58,7 @@ export default class NotifyingCell {
    * @param {forceActivation} boolean, If forceActivation is true, the function "f" will always be re-evaluated, regardless of whether or not there are changes to the input with new notifications.
    * @param {forceActivationByPaths} string[], It works like forceActivation, for specific notification paths.
    * @param {onNotification} Function, (n)=>void that intercepts notifications.
-   * @param {labels} [key:string]:string|string[], symbols that help to identify and organize reporting cells.
+   * @param {symbols} [key:string]:string|string[], symbols that help to identify and organize reporting cells.
    */
   constructor(params: NotifyingCellParams) {
     if (params.diff && !params.outDiff) {
@@ -71,14 +71,12 @@ export default class NotifyingCell {
     this.#pathsDiff = params.pathsDiff;
     this.#im = params.initialInputMem || {}; //can change, can't be in a constant
     this.#om = params.initialOutMem || undefined; //can change, can't be in a constant
-    this.#forceActivation = params.forceActivation;
-    this.#forceActivationByPaths = params.forceActivationByPaths;
     this.#onNotification = params.onNotification;
-    this.#labels = params.labels || {}; //can change, can't be in a constant
-    if (!this.#labels["id"]) {
-      this.#labels["id"] = crypto.randomUUID();
+    this.#symbols = params.symbols || {}; //can change, can't be in a constant
+    if (!this.#symbols["id"]) {
+      this.#symbols["id"] = crypto.randomUUID();
     }
-    NotifyingCell.byId[this.#labels["id"]] = this;
+    NotifyingCell.byId[this.#symbols["id"]] = this;
   }
   #inRuntimeIsNotification(input: any): boolean {
     if (typeof input !== "object") {
@@ -87,22 +85,22 @@ export default class NotifyingCell {
       return (("from" in input) && ("to" in input) &&
         ("notification" in input) &&
         ("mode" in input) && ("time" in input) && ("activationTime" in input) &&
-        ("labels" in input));
+        ("symbols" in input));
     }
   }
   #toNotification(
     input: any,
     path: Path,
     mode: NotificationMode,
-    labels: Labels,
-  ): Event {
+    symbols: Symbols,
+  ): NOPNotification {
     const time = Date.now();
     return {
       id: crypto.randomUUID(),
       from: null,
       to: this.id,
       notification: input,
-      labels: labels,
+      symbols: symbols,
       path: path,
       mode: mode,
       time: time,
@@ -112,22 +110,17 @@ export default class NotifyingCell {
   async #processInput(
     notifications: InputMem,
     mode: NotificationMode,
-    labels: Labels,
+    symbols: Symbols,
   ): Promise<void> {
-    var activationTime: number = this.#forceActivation ? Date.now() : 0;
+    var activationTime: number = 0;
     var hasInputChange: boolean = false;
     for (const param in notifications) {
-      if (!activationTime) {
-        if (this.#forceActivationByPaths.includes(param)) {
-          activationTime = Date.now();
-        }
-      }
       if (!this.#inRuntimeIsNotification(notifications[param])) {
         notifications[param] = this.#toNotification(
           notifications[param],
           param,
           mode,
-          labels,
+          symbols,
         );
       } else {
         notifications[param].mode = mode;
@@ -147,7 +140,7 @@ export default class NotifyingCell {
         }
         this.#im[param] = notifications[param].notification;
         hasInputChange = true;
-      } else if (mode === "RENOTIFICATION") {
+      } else if ((mode === "RENOTIFICATION") || (mode === "STRONG")) {
         if (!activationTime) {
           activationTime = Date.now();
         }
@@ -161,7 +154,7 @@ export default class NotifyingCell {
       if (activationTime) {
         var out: any = undefined;
         var outActivation = false;
-        if (hasInputChange || this.#forceActivation) {
+        if (hasInputChange || (mode === "STRONG")) {
           out = await this.#f(this.#im, this.data);
           if (mode === "RENOTIFICATION") {
             outActivation = true;
@@ -179,7 +172,7 @@ export default class NotifyingCell {
           for (const outCellId of this.#connections.keys()) {
             hasConn = true;
             const out: { //@ts-ignore
-              [key: NotificationMode]: { [key: Path]: Event };
+              [key: NotificationMode]: { [key: Path]: NOPNotification };
             } = {};
             for (const path of this.#connections.get(outCellId)!.keys()) {
               var connMode = this.#connections.get(outCellId)!.get(path)![0];
@@ -193,7 +186,7 @@ export default class NotifyingCell {
                 to: outCellId,
                 path: path,
                 notification: this.#om,
-                labels: {},
+                symbols: {},
                 mode: connMode,
                 time: outTime,
                 activationTime: activationTime,
@@ -206,13 +199,13 @@ export default class NotifyingCell {
             }
           }
           if (!hasConn) {
-            const n: Event = {
+            const n: NOPNotification = {
               id: crypto.randomUUID(),
               from: this.id,
               to: null,
               path: "",
               notification: this.#om,
-              labels: {},
+              symbols: {},
               mode: "",
               time: outTime,
               activationTime: activationTime,
@@ -229,15 +222,15 @@ export default class NotifyingCell {
   receive(
     notifications: InputMem,
     mode: NotificationMode = "",
-    labels: Labels = {},
+    symbols: Symbols = {},
   ): void {
-    this.#queue.add(() => this.#processInput(notifications, mode, labels));
+    this.#queue.add(() => this.#processInput(notifications, mode, symbols));
   }
 
   connect( //@ts-ignore
     paths: { [key: Path]: NotifyingCell | ID },
     mode: NotificationMode = "",
-    labels: Labels = {},
+    symbols: Symbols = {},
   ) {
     for (const path in paths) {
       const cellId = (typeof paths[path] === "object")
@@ -249,14 +242,14 @@ export default class NotifyingCell {
       if (!this.#connections.get(cellId as ID)) {
         this.#connections.set(cellId as ID, new Map());
       }
-      this.#connections.get(cellId as ID)!.set(path, [mode, labels]);
+      this.#connections.get(cellId as ID)!.set(path, [mode, symbols]);
     }
   }
   get connections() {
     return this.#connections;
   }
   toString(): string {
-    return JSON.stringify(this.#labels);
+    return JSON.stringify(this.#symbols);
   }
   toJSON(): any {
     const data: any = {
@@ -268,10 +261,8 @@ export default class NotifyingCell {
       outDiff: this.#outDiff,
       pathsDiff: this.#pathsDiff,
       onNotification: this.#onNotification,
-      labels: this.#labels,
+      symbols: this.#symbols,
       connections: this.#connections,
-      forceActivation: this.#forceActivation,
-      forceActivationByPaths: this.#forceActivationByPaths,
     };
     data.f = data.f.toString();
     data.diff = data.f.toString();
@@ -289,13 +280,13 @@ export default class NotifyingCell {
   static toJSON(): any {
     return NotifyingCell.byId;
   }
-  get labels(): Labels {
-    return this.#labels;
+  get symbols(): Symbols {
+    return this.#symbols;
   }
   get id(): ID {
-    return this.#labels["id"];
+    return this.#symbols["id"];
   }
-  static get byId(): Labels {
+  static get byId(): Symbols {
     return NotifyingCell.#byId;
   }
   get data(): { [key: string]: any } {

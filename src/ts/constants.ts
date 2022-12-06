@@ -6,13 +6,13 @@ cel: +55 (41) 99999-4664
 */
 
 import {
-  Event,
   GraphEngine,
   HistoryEntryFunc,
   HistoryGetFunc,
   HistoryTraverseFunc,
   ID,
   inputMem,
+  NOPNotification,
   NotifyingCellParams,
   Path,
 } from "./types.ts";
@@ -25,13 +25,13 @@ const defaultNotifyingCellParams: NotifyingCellParams = {
   pathsDiff: {},
   forceActivation: false,
   forceActivationByPaths: [],
-  onNotification: (n: Event) => undefined,
+  onNotification: (n: NOPNotification) => undefined,
 };
 
 //BEGIN DEFAULT GRAPH ENGINE
 const graphMap: Map<
   (null | ID),
-  Map<(null | ID), Event[]>
+  Map<(null | ID), NOPNotification[]>
 > = new Map();
 const reverseMap: Map<(null | ID), Set<(null | ID)>> = new Map();
 
@@ -83,7 +83,7 @@ const hasPath = (
 };
 
 const defaultHistoryEntryFunc: HistoryEntryFunc = (
-  n: Event,
+  n: NOPNotification,
 ): void => {
   ensurePath(n.from, n.to);
   const arr = graphMap.get(n.from)!.get(n.to)!;
@@ -98,7 +98,7 @@ const defaultHistoryEntryFunc: HistoryEntryFunc = (
   arr.splice(i, 0, n);
 };
 const defaultHistoryRemoveEntryFunc: HistoryEntryFunc = (
-  n: Event,
+  n: NOPNotification,
 ): void => {
   if (!hasPath(n.from, n.to)) {
     return;
@@ -115,8 +115,8 @@ const defaultHistoryGetFunc: HistoryGetFunc = (
   limit: number = 0,
   startTime: number = 0,
   endTime: number = 0,
-): Event[] => {
-  const res: Event = [];
+): NOPNotification[] => {
+  const res: NOPNotification = [];
   if (!hasPath(from, to)) {
     return res;
   }

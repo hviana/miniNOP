@@ -26,8 +26,8 @@ be understood as a minimal core approach.
 - [Sample application](#sample-application)
 - [Possibilities with notifying cells](#possibilities-with-notifying-cells)
   - [Chain operations](#chain-operations)
-  - [Relaxed inequality operator](#relaxed-inequality-operator)
-  - [Adding labels to cells](#adding-labels-to-cells)
+  - [Custom inequality operator](#custom-inequality-operator)
+  - [Adding symbols to cells](#adding-symbols-to-cells)
   - [Search the history graph](#search-the-history-graph)
 - [Instructions to run this project](#instructions-to-run-this-project)
 - [References](#references)
@@ -60,9 +60,9 @@ sumCell1.receive({ val1: 2, val2: 2 });
 
 The `receive` method also has an optional second parameter named `mode`. If
 `mode="RENOTIFICATION"`, the notification will force an exit notification even
-if there is no change in cell state. There is also `mode="WEAK"`, in which the
-notification updates the input memory of subsequent cells but does not trigger
-activations.
+if there is no change in cell state. If `mode="WEAK"`, in which the notification
+updates the input memory of subsequent cells but does not trigger activations.
+If `mode="STRONG"` an activation will be forced and `f` will be reevaluated.
 
 ## Possibilities with notifying cells
 
@@ -82,14 +82,14 @@ const premiseCell1 = new NotifyingCell({
   onNotification: log,
   initialInputMem: { right: 5 }, //Also exists the initialOutMem parameter
 });
-sumCell1.connect({ left: premiseCell1 }); //There is an optional second parameter which is the connection notification mode. It is possible to connect a cell by referencing its id instead of its instance object.
+sumCell1.connect({ left: premiseCell1 }); //There is an optional second parameter which is the connection notification mode. An optional third parameter containing the connection symbols is also accepted. It is possible to connect a cell by referencing its id instead of its instance object.
 ```
 
-### Relaxed inequality operator
+### Custom inequality operator
 
-It is possible to create a relaxed inequality operator to avoid excessively
+It is possible to create a custom inequality operator to avoid excessively
 unnecessary triggering of notifications. In the example below, it is considered
-that the modulus of the difference of two values ​​must be greater than 1;
+that the modulus of the difference of two values ​​must be greater than 1.
 
 ```typescript
 const getVal = (im: any, data: any) => im["val1"]; //Just pass notification path "val1" as outgoing notification value
@@ -115,15 +115,11 @@ cell1.receive({ val1: 3 });
 In this context, it is also possible to explore the `outDiff` and `pathsDiff`
 parameters. The `diff` parameter does not distinguish between input, output or
 notification path. And it will be used if these other more specific parameters
-are not found. There is also the `forceActivation` parameter, if
-`forceActivation` is true, the function `f` will always be re-evaluated,
-regardless of whether or not there are changes to the input with new
-notifications. There is also the parameter `forceActivationByPaths`, which works
-similarly to `forceActivation`, for specific notification paths.
+are not found.
 
-### Adding labels
+### Adding symbols
 
-Labels are properties that help to identify and categorize notifying cells and
+Symbols are properties that help to identify and categorize notifying cells and
 notifications, relating these cells and notifications to symbols. It is possible
 to see an example in the code below. The `id` label is automatically generated
 if not specified.
@@ -132,7 +128,7 @@ if not specified.
 const premiseCell1 = new NotifyingCell({
   f: biggerThan,
   onNotification: log,
-  labels: {
+  symbols: {
     type: "premise",
     subtype: "biggerThan",
   },
@@ -144,23 +140,25 @@ const premiseCell1 = new NotifyingCell({
 To use the history, it is first necessary to enable it using
 `NotifyingCell.historyEnabled = true`, after which it can be accessed by the
 graph in `NotifyingCell.history`. There is an algorithm capable of exploring
-this graph, so that explanations about events can be generated. It is possible
-to see the algorithm parameters in the code below.
+this graph, so that explanations about notifications can be generated. It is
+possible to see the algorithm parameters in the code below.
 
 ```typescript
   //class SearchAlg
 
   /**
    * @param {graph} HistoryGraph, can be accessed by NotifyingCell.history.
-   * @param {fl} function, (n:Event)=>boolean that selects search breakpoints and returns them as results. It has as input a notification and parameters of labels can be used.
-   * @param {e} Event, notification representing the event to be explained.
-   * @returns {*[Event[],Map<Event,Event[]>]} iterable result where each iteration has an array of notifications representing an explanation step and a map containing the path traversed for each notification.
+   * @param {n} NOPNotification, the notification to be explained.
+   * @param {func} function, (n:NOPNotification)=>boolean that selects search breakpoints and returns them as results. It has as input a notification and parameters of symbols can be used.
+   * @param {mode} ExpAlgMode, "SEARCH" | "PAST" | "AFTER".
+   * @returns {*NOPNotification} iterable result where each iteration has an notification representing an explanation step.
    */
-  static *xHistory( //There is also the "static *notXHistory" method, to find out why an event did not occur.
+  static *xHistory(
     graph: HistoryGraph,
-    fl: SearchFunc,
-    e: Event,
-  ): Generator<[Event[], Map<Event, Event[]>]>
+    n: NOPNotification,
+    func: SearchFunc,
+    mode: ExpAlgMode,
+  ): Generator<NOPNotification>
 ```
 
 ## Instructions to run this project

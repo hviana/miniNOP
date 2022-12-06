@@ -5,7 +5,6 @@ import SearchAlg from "./src/SearchAlg.ts";
 
 import type {
   Diff,
-  Event,
   F,
   GraphEngine,
   HistoryEntryFunc,
@@ -13,16 +12,16 @@ import type {
   HistoryTraverseFunc,
   ID,
   InputMem,
-  Labels,
+  NOPNotification,
   OnNotification,
   Path,
   SearchFunc,
+  Symbols,
 } from "./src/ts/types.ts";
 
 export {
   AsyncQueue,
   Diff,
-  Event,
   F,
   GraphEngine,
   HistoryEntryFunc,
@@ -31,10 +30,11 @@ export {
   HistoryTraverseFunc,
   ID,
   InputMem,
-  Labels,
+  NOPNotification,
   NotifyingCell,
   OnNotification,
   Path,
   SearchAlg,
   SearchFunc,
+  Symbols,
 };
