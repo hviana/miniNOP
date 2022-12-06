@@ -121,7 +121,7 @@ are not found.
 
 Symbols are properties that help to identify and categorize notifying cells and
 notifications, relating these cells and notifications to symbols. It is possible
-to see an example in the code below. The `id` label is automatically generated
+to see an example in the code below. The `id` symbol is automatically generated
 if not specified.
 
 ```typescript
