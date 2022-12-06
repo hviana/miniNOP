@@ -55,8 +55,6 @@ export default class NotifyingCell {
    * @param {pathsDiff} [key:Path]:(val1,val2)=>boolean, specific for each path representing a inequality operator. The default function is the language inequality operator (!=).
    * @param {initialInputMem} [key:Path]:any, Initial values ​​for input memory.
    * @param {initialOutMem} any, Initial values ​​for output memory.
-   * @param {forceActivation} boolean, If forceActivation is true, the function "f" will always be re-evaluated, regardless of whether or not there are changes to the input with new notifications.
-   * @param {forceActivationByPaths} string[], It works like forceActivation, for specific notification paths.
    * @param {onNotification} Function, (n)=>void that intercepts notifications.
    * @param {symbols} [key:string]:string|string[], symbols that help to identify and organize reporting cells.
    */
