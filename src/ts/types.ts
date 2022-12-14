@@ -8,6 +8,7 @@ cel: +55 (41) 99999-4664
 export type NotificationMode =
   | "RENOTIFICATION"
   | "WEAK"
+  | "STRONG"
   | "";
 
 export type ID = string;
